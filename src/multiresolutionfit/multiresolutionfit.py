@@ -17,11 +17,13 @@ References
                  p. 199-215, 1989.
 
 """
-from numpy import unique, asarray, append
-from boundbox2d import BoundBox2D
-import matplotlib.pyplot as plt
 from random import randint
 from math import floor, ceil
+from collections import OrderedDict
+from numpy import unique, asarray, append, where, array, exp
+from boundbox2d import BoundBox2D
+import matplotlib.pyplot as plt
+
 
 class ImageSizeError(Exception):
     def __init__(self, value):
@@ -63,18 +65,64 @@ class Multiresoutionfit:
             i += 1
         return wins
 
+    def _f(self, win, window1, window2):
+        cnt1, cnt2 = self.count_class(window1, window2)
+        A = set(cnt1.keys())
+        B = set(cnt2.keys())
+        common = list(A.intersection(B))
+        only_A = list(A - B)
+        only_B = list(B - A)
+
+        aki = 0
+
+        for cl in common:
+            aki += abs(cnt1[cl] - cnt2[cl])
+        for cl in only_A:
+            aki += cnt1[cl]
+        for cl in only_B:
+            aki += cnt2[cl]
+        f = 1 - aki / (2.0 * win * win)
+        return f
+
+
     def dif_class(self, win):
+        fw = 0
+
         for i in range(self._lines - win):
+            print(f"i:{i}, win: {win}")
+
             for j in range(self._cols - win):
-                self.count_class(self._scene1[i:i + win, j:j + win],
-                                       self._scene1[i:i + win, j:j + win])
-                print(i,j)
+                f = self._f(win, self._scene1[i:i + win, j:j + win],
+                   self._scene2[i:i + win, j:j + win])
+
+                fw += f
+
+        n = ((self._lines - win) *  (self._cols - win))
+        if n == 0:
+            fw = self._f(win, self._scene1, self._scene2)
+        else:
+            fw = fw / n
+        return fw
+
+    def ft(self, wins, k):
+        fw = []
+        for win in wins:
+            fw.append(self.dif_class(win))
+        fw = array(fw)
+        wins = array(wins)
+        e = exp( - k * (wins - 1))
+        ftot = (fw * e).sum() / e.sum()
+        return fw, ftot
+
+
 
 
     def count_class(self, window1, window2):
+
         unq1, cnts1 = unique(window1, return_counts=True)
         unq2, cnts2 = unique(window2, return_counts=True)
 
-        cnt1 = list(zip(unq1, cnts1))
-        cnt2 = list(zip(unq2, cnts2))
+        cnt1 = OrderedDict(zip(unq1, cnts1))
+        cnt2 = OrderedDict(zip(unq2, cnts2))
+
         return cnt1, cnt2
