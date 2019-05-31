@@ -85,10 +85,17 @@ class Multiresoutionfit:
         cl = min(self._lines, self._cols)
         w =  floor(cl / self._golden_ratio)
         i = 1
+        was_one = False
         while w > 1:
             if i == 1:
                 yield cl
             w =  floor(w / self._golden_ratio ** i)
+
+            if w == 1: was_one = True
+            if w == 0:
+                if was_one is False:
+                    yield 1
+                break
             yield w
             i += 1
 

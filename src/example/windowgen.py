@@ -6,8 +6,8 @@ from numpy.random import randint
 import matplotlib.pyplot as plt
 
 
-scene1 = randint(256, size=(50, 50))
-scene2 = randint(256, size=(50, 50))
+scene1 = randint(256, size=(100, 100))
+scene2 = randint(256, size=(100, 100))
 '''
 scene1 = array([[1, 1, 1, 1, 2, 2, 2, 3, 3, 3],
                 [1, 1, 1, 2, 2, 2, 3, 3, 3, 3],
@@ -42,8 +42,9 @@ k=0.1
 #wins = range(1, MAXW + 1)
 wins = None
 ftot, fw, wins = obj.ft(k=k, wins=wins)
-print(f"\nWeighted fit: {ftot:.2f}\n")
 z = obj.zvalue(k=k, wins=wins, permutations=30)
+
+print(f"\nWeighted fit: {ftot:.2f}\n")
 print(f"z value {z:.2f}.")
 plt.plot(wins, fw, marker='D')
 plt.xticks(wins)
