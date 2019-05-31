@@ -5,11 +5,10 @@ from numpy import zeros, array
 from numpy.random import randint
 import matplotlib.pyplot as plt
 
-'''
-scene1 = randint(256, size=(10, 10))
-scene2 = randint(256, size=(10, 10))
-'''
 
+scene1 = randint(256, size=(50, 50))
+scene2 = randint(256, size=(50, 50))
+'''
 scene1 = array([[1, 1, 1, 1, 2, 2, 2, 3, 3, 3],
                 [1, 1, 1, 2, 2, 2, 3, 3, 3, 3],
                 [1, 1, 2, 2, 2, 3, 3, 3, 3, 3],
@@ -33,20 +32,22 @@ scene2 = array([[1, 1, 2, 2, 2, 2, 2, 2, 3, 3],
                 [3, 3, 3, 3, 2, 2, 2, 3, 3, 3],
                 [3, 3, 3, 3, 2, 2, 2, 2, 3, 3]
                 ])
+'''
 
 
-obj = Multiresoutionfit(scene1, scene2)
+
+obj = Multiresoutionfit(scene1, scene2, verbose=True)
 MAXW = min(scene1.shape[0], scene1.shape[1])
 k=0.1
-wins = range(1, MAXW + 1)
-fw, ftot = obj.ft(k=k, wins=wins)
+#wins = range(1, MAXW + 1)
+wins = None
+ftot, fw, wins = obj.ft(k=k, wins=wins)
 print(f"\nWeighted fit: {ftot:.2f}\n")
 z = obj.zvalue(k=k, wins=wins, permutations=30)
 print(f"z value {z:.2f}.")
-
 plt.plot(wins, fw, marker='D')
 plt.xticks(wins)
-plt.ylim(ymax=0.95, ymin=0.75)
+#plt.ylim(ymax=0.95, ymin=0.75)
 plt.xlim(xmax=MAXW, xmin=1)
 plt.grid(True)
 plt.show()

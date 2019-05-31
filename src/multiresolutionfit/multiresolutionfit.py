@@ -41,6 +41,7 @@ from math import floor, ceil
 from numpy import array, exp
 from numpy.random import shuffle
 from .countclass import countclass
+import time
 
 
 class ImageSizeError(Exception):
@@ -58,7 +59,7 @@ class Multiresoutionfit:
     :param 2d_array scene1: Gray scale image
     :param 2d_array scene2: Gray scale image
     """
-    def __init__(self, scene1, scene2):
+    def __init__(self, scene1, scene2, verbose=False):
 
         if scene1.shape[0] != scene2.shape[0]:
             raise ImageSizeError("The images have diferent number of lines")
@@ -68,6 +69,7 @@ class Multiresoutionfit:
 
         self._scene1 = scene1
         self._scene2 = scene2
+        self._verbose = verbose
 
         self._lines, self._cols = self._scene1.shape
         self._golden_ratio = (1.0 + 5.0 ** 0.5) / 2.0
@@ -82,10 +84,10 @@ class Multiresoutionfit:
         """
         cl = min(self._lines, self._cols)
         w =  floor(cl / self._golden_ratio)
-        wins = []
         i = 1
-        while w >= 1:
-            wins.append(w)
+        while w > 1:
+            if i == 1:
+                yield cl
             w =  floor(w / self._golden_ratio ** i)
             yield w
             i += 1
@@ -146,16 +148,22 @@ class Multiresoutionfit:
         :parameter float k: weight range [0,1].
         :parameter list wins:  list of windows size.
         """
+        self._print("\n* Calculating Ft *")
+
         fw = []
         if wins is None:
-            wins = self.window_generator()
+            wins = self.golden_rectangle_generator()
+        t0 = time.time()
         for win in wins:
+            self._print(f"Calculating Fw for window size {win}.")
             fw.append(self.fwin(win, scene1=scene1))
+        dt = (time.time() - t0)
+        self._print(f"Calculated in t {dt} seconds.\n")
         fw = array(fw)
-        wins = array(wins)
+        wins = array(list(self.golden_rectangle_generator()))
         e = exp( - k * (wins - 1))
         ftot = (fw * e).sum() / e.sum()
-        return fw, ftot
+        return ftot, fw, wins
 
     def zvalue(self, k, wins=None, permutations=20):
         """
@@ -172,12 +180,20 @@ class Multiresoutionfit:
          - z > 10: significant
         """
         frand = []
-        print("Calculating Ft")
-        ft = self.ft(k, wins=wins)[1]
+        print("* Calculating Ft *")
+        ft = self.ft(k, wins=wins)[0]
+
+        t0 = time.time()
         for i in range(1, permutations + 1):
-            #print(f"Ft for permutation {i}\n")
+            self._print(f"Ft for permutation {i}.")
             scene1 = shuffle(self._scene1)
-            frand.append(self.ft(k, wins=wins, scene1=scene1)[1])
+            frand.append(self.ft(k, wins=wins, scene1=scene1)[0])
+        dt = (time.time() - t0)
+        self._print(f"z-value Calculated in t {dt} seconds.\n")
         frand = array(frand)
         z = (ft - frand.mean()) / frand.std()
         return z
+
+    def _print(self, text):
+        if self._verbose is True:
+            print(text)
