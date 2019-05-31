@@ -38,10 +38,15 @@ References
 
 """
 from math import floor, ceil
-from numpy import array, exp
-from numpy.random import shuffle
-from .countclass import countclass
 import time
+
+from numpy import array, exp
+from numba import njit, prange, jit, float64, int64, uint8
+from numba.typed import Dict
+from numba import types
+
+from numpy.random import shuffle
+from numpy import unique
 
 
 class ImageSizeError(Exception):
@@ -50,6 +55,61 @@ class ImageSizeError(Exception):
 
     def __str__(self):
         return repr(value)
+
+TYPEF = "float64(int64, int64[:,:], int64[:,:])"
+TYPEFW = "float64(int64, int64, int64, int64[:,:], int64[:,:])"
+
+
+@njit(TYPEF, nogil=True)
+def _f(win, window1, window2):
+    """
+    Count class.
+    Return $f = 1 - \frac{\sum_{i=1}^{p}{|a_{1i} -a_{2i}|}}{2w^{2}}$
+    """
+    unq1 = unique(window1)
+    unq2 = unique(window2)
+
+    cnt1 = Dict.empty(key_type=types.int64,
+                      value_type=types.int64,
+                      )
+    cnt2 =  Dict.empty(key_type=types.int64,
+                      value_type=types.int64,
+                      )
+
+    for key in unq1:
+        cnt1[key] = (window1 == key).sum()
+
+    for key in unq2:
+        cnt2[key] = (window2 == key).sum()
+
+    A = set(cnt1.keys())
+    B = set(cnt2.keys())
+    common = list(A.intersection(B))
+    only_in_A = list(A - B)
+    only_in_B = list(B - A)
+
+    aki = 0
+
+    for cl in common:
+        aki += abs(cnt1[cl] - cnt2[cl])
+    for cl in only_in_A:
+        aki += cnt1[cl]
+    for cl in only_in_B:
+        aki += cnt2[cl]
+    f = 1 - aki / (2.0 * win * win)
+    return f
+
+@njit(TYPEFW, nogil=True, parallel=True)
+def _fw(win, lines, cols, scene1, scene2):
+    fw = 0
+    for i in prange(lines - win):
+        for j in prange(cols - win):
+            f = _f(win,
+                        scene1[i:i + win, j:j + win],
+                        scene2[i:i + win, j:j + win]
+                        )
+            fw += f
+    return fw
 
 
 class Multiresoutionfit:
@@ -70,6 +130,7 @@ class Multiresoutionfit:
         self._scene1 = scene1
         self._scene2 = scene2
         self._verbose = verbose
+        self._zvalue = False
 
         self._lines, self._cols = self._scene1.shape
         self._golden_ratio = (1.0 + 5.0 ** 0.5) / 2.0
@@ -99,31 +160,7 @@ class Multiresoutionfit:
             yield w
             i += 1
 
-    def _f(self, win, window1, window2):
-        """
-        Count class.
-        Return $f = 1 - \frac{\sum_{i=1}^{p}{|a_{1i} -a_{2i}|}}{2w^{2}}$
-        """
-        cnt1, cnt2 = countclass(window1, window2)
-        A = set(cnt1.keys())
-        B = set(cnt2.keys())
-        common = list(A.intersection(B))
-        only_in_A = list(A - B)
-        only_in_B = list(B - A)
-
-        aki = 0
-
-        for cl in common:
-            aki += abs(cnt1[cl] - cnt2[cl])
-        for cl in only_in_A:
-            aki += cnt1[cl]
-        for cl in only_in_B:
-            aki += cnt2[cl]
-        f = 1 - aki / (2.0 * win * win)
-        return f
-
-
-    def fwin(self, win, scene1=None):
+    def fwin(self, win):
         """
         Fit at a particular sampling window size.
         :parameter int win: window size
@@ -131,25 +168,22 @@ class Multiresoutionfit:
                   \left[ 1 - \frac{\sum_{i=1}^{p}{|a_{1i} -a_{2i}|}}{2w^{2}}
                   \right]_{s}}}{t_{w}}$
         """
-        if scene1 is None:
+        if self._zvalue is True:
+            scene1 = self._scene1.copy()
+            shuffle(scene1)
+        else:
             scene1 = self._scene1
 
-        fw = 0
-        for i in range(self._lines - win):
-            for j in range(self._cols - win):
-                f = self._f(win, scene1[i:i + win, j:j + win],
-                                 self._scene2[i:i + win, j:j + win]
-                            )
-                fw += f
+        fw = _fw(win, self._lines, self._cols, scene1, self._scene2)
 
         n = ((self._lines - win) *  (self._cols - win))
         if n == 0:
-            fw = self._f(win, self._scene1, self._scene2)
+            fw = _f(win, self._scene1, self._scene2)
         else:
             fw = fw / n
         return fw
 
-    def ft(self, k, wins=None, scene1=None):
+    def ft(self, k, wins=None):
         """
         Weight average of the fits over all window sizes.
         :parameter float k: weight range [0,1].
@@ -163,7 +197,7 @@ class Multiresoutionfit:
         t0 = time.time()
         for win in wins:
             self._print(f"Calculating Fw for window size {win}.")
-            fw.append(self.fwin(win, scene1=scene1))
+            fw.append(self.fwin(win))
         dt = (time.time() - t0)
         self._print(f"Calculated in t {dt} seconds.\n")
         fw = array(fw)
@@ -191,10 +225,11 @@ class Multiresoutionfit:
         ft = self.ft(k, wins=wins)[0]
 
         t0 = time.time()
+        self._zvalue = True
         for i in range(1, permutations + 1):
             self._print(f"Ft for permutation {i}.")
-            scene1 = shuffle(self._scene1)
-            frand.append(self.ft(k, wins=wins, scene1=scene1)[0])
+            frand.append(self.ft(k, wins=wins)[0])
+        self._zvalue = False
         dt = (time.time() - t0)
         self._print(f"z-value Calculated in t {dt} seconds.\n")
         frand = array(frand)

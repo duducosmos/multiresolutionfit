@@ -6,8 +6,8 @@ from numpy.random import randint
 import matplotlib.pyplot as plt
 
 
-scene1 = randint(256, size=(100, 100))
-scene2 = randint(256, size=(100, 100))
+scene1 = randint(256, size=(200, 200))
+scene2 = randint(256, size=(200, 200))
 '''
 scene1 = array([[1, 1, 1, 1, 2, 2, 2, 3, 3, 3],
                 [1, 1, 1, 2, 2, 2, 3, 3, 3, 3],
@@ -33,8 +33,6 @@ scene2 = array([[1, 1, 2, 2, 2, 2, 2, 2, 3, 3],
                 [3, 3, 3, 3, 2, 2, 2, 2, 3, 3]
                 ])
 '''
-
-
 
 obj = Multiresoutionfit(scene1, scene2, verbose=True)
 MAXW = min(scene1.shape[0], scene1.shape[1])
