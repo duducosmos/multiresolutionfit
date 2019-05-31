@@ -48,12 +48,14 @@ from numba import types
 from numpy.random import shuffle
 from numpy import unique
 
+
 class ImageSizeError(Exception):
     def __init__(self, value):
         value = value
 
     def __str__(self):
         return repr(value)
+
 
 TYPEF = "float64(int64, int64[:,:], int64[:,:])"
 TYPEFW = "float64(int64, int64, int64, int64[:,:], int64[:,:])"
@@ -71,7 +73,7 @@ def _f(win, window1, window2):
     cnt1 = Dict.empty(key_type=types.int64,
                       value_type=types.int64,
                       )
-    cnt2 =  Dict.empty(key_type=types.int64,
+    cnt2 = Dict.empty(key_type=types.int64,
                       value_type=types.int64,
                       )
 
@@ -98,15 +100,16 @@ def _f(win, window1, window2):
     f = 1 - aki / (2.0 * win * win)
     return f
 
+
 @njit(TYPEFW, nogil=True, parallel=True)
 def _fw(win, lines, cols, scene1, scene2):
     fw = 0
     for i in prange(lines - win):
         for j in prange(cols - win):
             f = _f(win,
-                        scene1[i:i + win, j:j + win],
-                        scene2[i:i + win, j:j + win]
-                        )
+                   scene1[i:i + win, j:j + win],
+                   scene2[i:i + win, j:j + win]
+                   )
             fw += f
     return fw
 
@@ -118,6 +121,7 @@ class Multiresoutionfit:
     :param 2d_array scene1: Gray scale image
     :param 2d_array scene2: Gray scale image
     """
+
     def __init__(self, scene1, scene2, verbose=False):
 
         if scene1.shape[0] != scene2.shape[0]:
@@ -143,15 +147,16 @@ class Multiresoutionfit:
         :return int w: side of golden rectangles.
         """
         cl = min(self._lines, self._cols)
-        w =  floor(cl / self._golden_ratio)
+        w = floor(cl / self._golden_ratio)
         i = 1
         was_one = False
         while w > 1:
             if i == 1:
                 yield cl
-            w =  floor(w / self._golden_ratio ** i)
+            w = floor(w / self._golden_ratio ** i)
 
-            if w == 1: was_one = True
+            if w == 1:
+                was_one = True
             if w == 0:
                 if was_one is False:
                     yield 1
@@ -175,7 +180,7 @@ class Multiresoutionfit:
 
         fw = _fw(win, self._lines, self._cols, scene1, self._scene2)
 
-        n = ((self._lines - win) *  (self._cols - win))
+        n = ((self._lines - win) * (self._cols - win))
         if n == 0:
             fw = _f(win, self._scene1, self._scene2)
         else:
@@ -201,7 +206,7 @@ class Multiresoutionfit:
         self._print(f"Calculated in t {dt} seconds.\n")
         fw = array(fw)
         wins = array(list(self.golden_rectangle_generator()))
-        e = exp( - k * (wins - 1))
+        e = exp(- k * (wins - 1))
         ftot = (fw * e).sum() / e.sum()
         return ftot, fw, wins
 

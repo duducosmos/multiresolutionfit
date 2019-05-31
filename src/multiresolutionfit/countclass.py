@@ -39,6 +39,7 @@ Copyright [2019] [E. S. Pereira]
 from collections import OrderedDict
 from numpy import unique
 
+
 def countclass(scene1, scene2):
     """
     Count Class function.

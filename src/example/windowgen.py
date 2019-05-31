@@ -36,7 +36,7 @@ scene2 = array([[1, 1, 2, 2, 2, 2, 2, 2, 3, 3],
 
 obj = Multiresoutionfit(scene1, scene2, verbose=True)
 MAXW = min(scene1.shape[0], scene1.shape[1])
-k=0.1
+k = 0.1
 #wins = range(1, MAXW + 1)
 wins = None
 ftot, fw, wins = obj.ft(k=k, wins=wins)
