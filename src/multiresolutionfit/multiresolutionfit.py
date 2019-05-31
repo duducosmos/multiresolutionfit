@@ -39,6 +39,7 @@ References
 """
 from math import floor, ceil
 from numpy import array, exp
+from numpy.random import shuffle
 from .countclass import countclass
 
 
@@ -113,7 +114,7 @@ class Multiresoutionfit:
         return f
 
 
-    def fwin(self, win):
+    def fwin(self, win, scene1=None):
         """
         Fit at a particular sampling window size.
         :parameter int win: window size
@@ -121,11 +122,15 @@ class Multiresoutionfit:
                   \left[ 1 - \frac{\sum_{i=1}^{p}{|a_{1i} -a_{2i}|}}{2w^{2}}
                   \right]_{s}}}{t_{w}}$
         """
+        if scene1 is None:
+            scene1 = self._scene1
+
         fw = 0
         for i in range(self._lines - win):
             for j in range(self._cols - win):
-                f = self._f(win, self._scene1[i:i + win, j:j + win],
-                   self._scene2[i:i + win, j:j + win])
+                f = self._f(win, scene1[i:i + win, j:j + win],
+                                 self._scene2[i:i + win, j:j + win]
+                            )
                 fw += f
 
         n = ((self._lines - win) *  (self._cols - win))
@@ -135,7 +140,7 @@ class Multiresoutionfit:
             fw = fw / n
         return fw
 
-    def ft(self, k, wins=None):
+    def ft(self, k, wins=None, scene1=None):
         """
         Weight average of the fits over all window sizes.
         :parameter float k: weight range [0,1].
@@ -145,9 +150,34 @@ class Multiresoutionfit:
         if wins is None:
             wins = self.window_generator()
         for win in wins:
-            fw.append(self.fwin(win))
+            fw.append(self.fwin(win, scene1=scene1))
         fw = array(fw)
         wins = array(wins)
         e = exp( - k * (wins - 1))
         ftot = (fw * e).sum() / e.sum()
         return fw, ftot
+
+    def zvalue(self, k, wins=None, permutations=20):
+        """
+        z-value.
+
+        :parameter float k: weight range [0,1].
+        :parameter list wins:  list of windows size.
+        :parameter int permutation: total of permutations.
+
+        Significance guidelines
+        -----------------------
+         - z > 3: possibly significant
+         - z > 6: probably significant
+         - z > 10: significant
+        """
+        frand = []
+        print("Calculating Ft")
+        ft = self.ft(k, wins=wins)[1]
+        for i in range(1, permutations + 1):
+            #print(f"Ft for permutation {i}\n")
+            scene1 = shuffle(self._scene1)
+            frand.append(self.ft(k, wins=wins, scene1=scene1)[1])
+        frand = array(frand)
+        z = (ft - frand.mean()) / frand.std()
+        return z
