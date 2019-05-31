@@ -48,7 +48,6 @@ from numba import types
 from numpy.random import shuffle
 from numpy import unique
 
-
 class ImageSizeError(Exception):
     def __init__(self, value):
         value = value

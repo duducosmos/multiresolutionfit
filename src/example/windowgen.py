@@ -6,8 +6,8 @@ from numpy.random import randint
 import matplotlib.pyplot as plt
 
 
-scene1 = randint(256, size=(200, 200))
-scene2 = randint(256, size=(200, 200))
+scene1 = randint(256, size=(500, 500))
+scene2 = randint(256, size=(500, 500))
 '''
 scene1 = array([[1, 1, 1, 1, 2, 2, 2, 3, 3, 3],
                 [1, 1, 1, 2, 2, 2, 3, 3, 3, 3],
