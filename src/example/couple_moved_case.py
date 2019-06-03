@@ -25,6 +25,7 @@ for key in scenes2:
     z = obj.zvalue(k=k)
     print(f"z value {z:.2f}.")
     plt.plot(wins, fw, marker='D')
+    plt.title(f"Fit for {key}")
     plt.xticks(wins)
     plt.grid(True)
     plt.show()
