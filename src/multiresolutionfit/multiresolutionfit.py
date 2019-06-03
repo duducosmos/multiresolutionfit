@@ -113,6 +113,35 @@ def _fw(win, lines, cols, scene1, scene2):
             fw += f
     return fw
 
+def _fwin(win, scene1, scene2, zvalue):
+    """
+    Fit at a particular sampling window size.
+    :parameter int win: window size
+    Return:  $F_{w}= \frac{\sum_{s=1}^{t_{w}}{
+              \left[ 1 - \frac{\sum_{i=1}^{p}{|a_{1i} -a_{2i}|}}{2w^{2}}
+              \right]_{s}}}{t_{w}}$
+    """
+    if scene1.shape[0] != scene2.shape[0]:
+        raise ImageSizeError("The images have diferent number of lines")
+
+    if scene1.shape[1] != scene2.shape[1]:
+        raise ImageSizeError("The images have diferent number of columns")
+
+    lines, cols = scene1.shape
+
+    scene1s = scene1.copy()
+    if zvalue is True:
+        shuffle(scene1s)
+
+    fw = _fw(win, lines, cols, scene1s, scene2)
+
+    n = ((lines - win) * (cols - win))
+    if n == 0:
+        fw = _f(win, scene1s, scene2)
+    else:
+        fw = fw / n
+    return fw
+
 
 class Multiresoutionfit:
     r"""
@@ -138,7 +167,7 @@ class Multiresoutionfit:
         self._lines, self._cols = self._scene1.shape
         self._golden_ratio = (1.0 + 5.0 ** 0.5) / 2.0
 
-    def golden_rectangle_generator(self):
+    def golden_rectangle_generator(self, cl):
         r"""
         Golden rectangle Generator.
 
@@ -146,7 +175,6 @@ class Multiresoutionfit:
         image.
         :return int w: side of golden rectangles.
         """
-        cl = min(self._lines, self._cols)
         w = floor(cl / self._golden_ratio)
         i = 1
         was_one = False
@@ -165,27 +193,7 @@ class Multiresoutionfit:
             i += 1
 
     def fwin(self, win):
-        """
-        Fit at a particular sampling window size.
-        :parameter int win: window size
-        Return:  $F_{w}= \frac{\sum_{s=1}^{t_{w}}{
-                  \left[ 1 - \frac{\sum_{i=1}^{p}{|a_{1i} -a_{2i}|}}{2w^{2}}
-                  \right]_{s}}}{t_{w}}$
-        """
-        if self._zvalue is True:
-            scene1 = self._scene1.copy()
-            shuffle(scene1)
-        else:
-            scene1 = self._scene1
-
-        fw = _fw(win, self._lines, self._cols, scene1, self._scene2)
-
-        n = ((self._lines - win) * (self._cols - win))
-        if n == 0:
-            fw = _f(win, self._scene1, self._scene2)
-        else:
-            fw = fw / n
-        return fw
+        return _fwin(win, self._scene1, self._scene2, self._zvalue)
 
     def ft(self, k, wins=None):
         """
@@ -196,8 +204,11 @@ class Multiresoutionfit:
         self._print("\n* Calculating Ft *")
 
         fw = []
+
+        cl = min(self._lines, self._cols)
+
         if wins is None:
-            wins = self.golden_rectangle_generator()
+            wins = array(list(self.golden_rectangle_generator(cl)))
         t0 = time.time()
         for win in wins:
             self._print(f"Calculating Fw for window size {win}.")
@@ -205,10 +216,53 @@ class Multiresoutionfit:
         dt = (time.time() - t0)
         self._print(f"Calculated in t {dt} seconds.\n")
         fw = array(fw)
-        wins = array(list(self.golden_rectangle_generator()))
+
         e = exp(- k * (wins - 1))
         ftot = (fw * e).sum() / e.sum()
         return ftot, fw, wins
+
+    def ft_par(self, k, wins=None, npixels=200):
+        """
+        Weight average of the fits over all window sizes.
+        :parameter float k: weight range [0,1].
+        :parameter list wins:  list of windows size.
+        """
+        if self._lines // 200 <= 1 or self._cols // 200 <= 1:
+            return self.ft(k=k, wins=wins)
+
+        self._print("\n* Calculating Ft *")
+
+        nlines = self._lines // npixels
+        ncols = self._cols // npixels
+
+        imgs1 = [self._scene1[i: i + npixels, j: j + npixels]
+                 for i in range(0, self._lines, npixels)
+                 for j in range(0, self._cols, npixels)]
+        imgs2 = [self._scene2[i: i + npixels, j: j + npixels]
+                 for i in range(0, self._lines, npixels)
+                 for j in range(0, self._cols, npixels)]
+
+        cl = min(imgs1[0].shape[0], imgs1[0].shape[1])
+
+        if wins is None:
+            wins = array(list(self.golden_rectangle_generator(cl)))
+
+        ftot = []
+        n = len(imgs1)
+        t0 = time.time()
+        for wi in range(n):
+            self._print(f"\nCalculating for scene {wi}.")
+            fw = []
+            for win in wins:
+                self._print(f"Calculating Fw for window size {win}.")
+                fw.append(_fwin(win, imgs1[wi], imgs2[wi], self._zvalue))
+            fw = array(fw)
+            e = exp(- k * (wins - 1))
+            ftot.append((fw * e).sum() / e.sum())
+        dt = (time.time() - t0)
+        self._print(f"\nCalculated in t {dt} seconds.\n")
+        ftot = array(ftot)
+        return ftot.mean()
 
     def zvalue(self, k, wins=None, permutations=20):
         """
@@ -227,7 +281,6 @@ class Multiresoutionfit:
         frand = []
         print("* Calculating Ft *")
         ft = self.ft(k, wins=wins)[0]
-
         t0 = time.time()
         self._zvalue = True
         for i in range(1, permutations + 1):
