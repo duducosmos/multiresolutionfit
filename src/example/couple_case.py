@@ -29,7 +29,7 @@ for key in scenes2:
     print(f"Total time: {tf-t0}  seconds")
     print(f"\nWeighted fit par: {ftot_par:.2f}\n")
     t0 = time.time()
-    z = obj.zvalue(k=k, permutations=20, npixels=200)
+    z = obj.zvalue(k=k, permutations=20, npixels=100)
     tf = time.time()
     print(f"Total time: {tf-t0}  seconds")
     print(f"z value {z:.2f}.")

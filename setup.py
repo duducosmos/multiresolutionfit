@@ -19,6 +19,7 @@ setup(
     lond_description=read("README.md"),
     install_requires=["numpy",
                       "numba",
-                      "opencv-python"
+                      "opencv-python",
+                      "progressbar2"
                       ]
 )

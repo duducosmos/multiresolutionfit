@@ -48,6 +48,8 @@ from numba import types
 from numpy.random import shuffle
 from numpy import unique
 
+from progressbar import  progressbar
+
 
 class ImageSizeError(Exception):
     def __init__(self, value):
@@ -103,6 +105,9 @@ def _f(win, window1, window2):
 
 @njit(TYPEFW, nogil=True, parallel=True)
 def _fw(win, lines, cols, scene1, scene2):
+    """
+    Parallel comparation of images.
+    """
     fw = 0
     for i in prange(lines - win):
         for j in prange(cols - win):
@@ -149,6 +154,7 @@ class Multiresoutionfit:
 
     :param 2d_array scene1: Gray scale image
     :param 2d_array scene2: Gray scale image
+    :param boolean verbose: verbose option default False
     """
 
     def __init__(self, scene1, scene2, verbose=False):
@@ -170,6 +176,9 @@ class Multiresoutionfit:
 
     @property
     def golden_rectangles(self):
+        '''
+        Return golden rectangle used to analyse image.
+        '''
         return self._golden_rectangle
 
     def golden_rectangle_generator(self, cl):
@@ -198,6 +207,13 @@ class Multiresoutionfit:
             i += 1
 
     def fwin(self, win):
+        '''
+        Fit at a particular sampling window size.
+        :parameter int win: window size
+        Return:  $F_{w}= \frac{\sum_{s=1}^{t_{w}}{
+                  \left[ 1 - \frac{\sum_{i=1}^{p}{|a_{1i} -a_{2i}|}}{2w^{2}}
+                  \right]_{s}}}{t_{w}}$
+        '''
         return _fwin(win, self._scene1, self._scene2, self._zvalue)
 
     def ft(self, k, wins=None):
@@ -216,14 +232,15 @@ class Multiresoutionfit:
             wins = array(list(self.golden_rectangle_generator(cl)))
             self._golden_rectangle = wins.copy()
 
-        t0 = time.time()
-        for win in wins:
-            self._print(f"Calculating Fw for window size {win}.")
-            fw.append(self.fwin(win))
-        dt = (time.time() - t0)
-        self._print(f"Calculated in t {dt} seconds.\n")
-        fw = array(fw)
+        prog = range(len(wins))
+        prog = progressbar(prog) if self._verbose is True else prog
 
+        for i in prog:
+            fw.append(self.fwin(wins[i]))
+
+        self._print("\n")
+
+        fw = array(fw)
         e = exp(- k * (wins - 1))
         ftot = (fw * e).sum() / e.sum()
         return ftot, fw, wins
@@ -237,7 +254,7 @@ class Multiresoutionfit:
         if self._lines // npixels <= 1 or self._cols // npixels <= 1:
             return self.ft(k=k, wins=wins)[0]
 
-        self._print("\n* Calculating Ft *")
+        self._print("\n* Calculating Ft DC *")
 
         nlines = self._lines // npixels
         ncols = self._cols // npixels
@@ -256,27 +273,20 @@ class Multiresoutionfit:
             self._golden_rectangle = wins.copy()
 
         ftot = []
-        n = len(imgs1)
-        t0 = time.time()
-        for wi in range(n):
-            self._print(f"\nCalculating for scene {wi}.")
-
+        prog = range(len(imgs1))
+        prog = progressbar(prog) if self._verbose is True else  prog
+        for wi in prog:
             fw = []
             for win in wins:
-                self._print(f"Calculating Fw for window size {win}.")
-
                 fw.append(_fwin(win, imgs1[wi], imgs2[wi], self._zvalue))
             fw = array(fw)
             e = exp(- k * (wins - 1))
             ftot.append((fw * e).sum() / e.sum())
-
-        dt = (time.time() - t0)
-        self._print(f"\nCalculated in {dt} seconds.\n")
-
+        self._print("\n")
         ftot = array(ftot)
         return ftot.mean()
 
-    def zvalue(self, k, wins=None, permutations=20, npixels=200):
+    def zvalue(self, k, wins=None, permutations=20, npixels=100):
         """
         z-value.
 
@@ -291,16 +301,17 @@ class Multiresoutionfit:
          - z > 10: significant
         """
         frand = []
-        self._print("* Calculating Ft *")
+        print("* Calculating z-value *")
         ft = self.ft_par(k, wins=wins, npixels=npixels)
-        t0 = time.time()
         self._zvalue = True
-        for i in range(1, permutations + 1):
-            self._print(f"Ft for permutation {i}.")
+        tmp = self._verbose
+        self._verbose = False
+        print("* Permutations *")
+        for i in progressbar(range(1, permutations + 1)):
             frand.append(self.ft_par(k, wins=wins, npixels=npixels))
         self._zvalue = False
-        dt = (time.time() - t0)
-        self._print(f"z-value Calculated in {dt} seconds.\n")
+        self._verbose = tmp
+        print("\n")
         frand = array(frand)
         z = (ft - frand.mean()) / frand.std()
         return z
