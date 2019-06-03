@@ -166,6 +166,11 @@ class Multiresoutionfit:
 
         self._lines, self._cols = self._scene1.shape
         self._golden_ratio = (1.0 + 5.0 ** 0.5) / 2.0
+        self._golden_rectangle = None
+
+    @property
+    def golden_rectangles(self):
+        return self._golden_rectangle
 
     def golden_rectangle_generator(self, cl):
         r"""
@@ -209,6 +214,8 @@ class Multiresoutionfit:
 
         if wins is None:
             wins = array(list(self.golden_rectangle_generator(cl)))
+            self._golden_rectangle = wins.copy()
+
         t0 = time.time()
         for win in wins:
             self._print(f"Calculating Fw for window size {win}.")
@@ -221,14 +228,14 @@ class Multiresoutionfit:
         ftot = (fw * e).sum() / e.sum()
         return ftot, fw, wins
 
-    def ft_par(self, k, wins=None, npixels=200):
+    def ft_par(self, k, wins=None, npixels=100):
         """
         Weight average of the fits over all window sizes.
         :parameter float k: weight range [0,1].
         :parameter list wins:  list of windows size.
         """
-        if self._lines // 200 <= 1 or self._cols // 200 <= 1:
-            return self.ft(k=k, wins=wins)
+        if self._lines // npixels <= 1 or self._cols // npixels <= 1:
+            return self.ft(k=k, wins=wins)[0]
 
         self._print("\n* Calculating Ft *")
 
@@ -246,25 +253,30 @@ class Multiresoutionfit:
 
         if wins is None:
             wins = array(list(self.golden_rectangle_generator(cl)))
+            self._golden_rectangle = wins.copy()
 
         ftot = []
         n = len(imgs1)
         t0 = time.time()
         for wi in range(n):
             self._print(f"\nCalculating for scene {wi}.")
+
             fw = []
             for win in wins:
                 self._print(f"Calculating Fw for window size {win}.")
+
                 fw.append(_fwin(win, imgs1[wi], imgs2[wi], self._zvalue))
             fw = array(fw)
             e = exp(- k * (wins - 1))
             ftot.append((fw * e).sum() / e.sum())
+
         dt = (time.time() - t0)
-        self._print(f"\nCalculated in t {dt} seconds.\n")
+        self._print(f"\nCalculated in {dt} seconds.\n")
+
         ftot = array(ftot)
         return ftot.mean()
 
-    def zvalue(self, k, wins=None, permutations=20):
+    def zvalue(self, k, wins=None, permutations=20, npixels=200):
         """
         z-value.
 
@@ -279,16 +291,16 @@ class Multiresoutionfit:
          - z > 10: significant
         """
         frand = []
-        print("* Calculating Ft *")
-        ft = self.ft(k, wins=wins)[0]
+        self._print("* Calculating Ft *")
+        ft = self.ft_par(k, wins=wins, npixels=npixels)
         t0 = time.time()
         self._zvalue = True
         for i in range(1, permutations + 1):
             self._print(f"Ft for permutation {i}.")
-            frand.append(self.ft(k, wins=wins)[0])
+            frand.append(self.ft_par(k, wins=wins, npixels=npixels))
         self._zvalue = False
         dt = (time.time() - t0)
-        self._print(f"z-value Calculated in t {dt} seconds.\n")
+        self._print(f"z-value Calculated in {dt} seconds.\n")
         frand = array(frand)
         z = (ft - frand.mean()) / frand.std()
         return z
