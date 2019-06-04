@@ -21,15 +21,9 @@ MAXW = min(scene1.shape[0], scene1.shape[1])
 
 for key in scenes2:
     print(f"Starting for {key}")
-    obj = Multiresoutionfit(scene1, scenes2[key])
+    obj = Multiresoutionfit(scene1, scenes2[key], verbose=True)
     k = 0.1
-    t0 = time.time()
     ftot_par = obj.ft_par(k=k)
-    tf = time.time()
-    print(f"Total time: {tf-t0}  seconds")
     print(f"\nWeighted fit par: {ftot_par:.2f}\n")
-    t0 = time.time()
     z = obj.zvalue(k=k, permutations=20, npixels=100)
-    tf = time.time()
-    print(f"Total time: {tf-t0}  seconds")
     print(f"z value {z:.2f}.")
