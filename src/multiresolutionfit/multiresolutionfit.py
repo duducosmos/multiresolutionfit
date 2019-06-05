@@ -314,7 +314,7 @@ class Multiresoutionfit:
         print("\n")
         frand = array(frand)
         z = (ft - frand.mean()) / frand.std()
-        return z
+        return z, ft
 
     def _print(self, text):
         if self._verbose is True:

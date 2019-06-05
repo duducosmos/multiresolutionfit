@@ -46,7 +46,7 @@ k = 0.1
 wins = arange(1, 11, 1, dtype=int)
 ftot, fw, wins = obj.ft(k=k, wins=wins)
 print(f"\nWeighted fit: {ftot:.2f}\n")
-z = obj.zvalue(k=k, wins=wins, permutations=30)
+z, fit = obj.zvalue(k=k, wins=wins, permutations=30)
 print(f"z value {z:.2f}.")
 plt.plot(wins, fw, marker='D')
 plt.xticks(wins)

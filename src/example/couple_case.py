@@ -23,7 +23,6 @@ for key in scenes2:
     print(f"Starting for {key}")
     obj = Multiresoutionfit(scene1, scenes2[key], verbose=True)
     k = 0.1
-    ftot_par = obj.ft_par(k=k)
-    print(f"\nWeighted fit par: {ftot_par:.2f}\n")
-    z = obj.zvalue(k=k, permutations=20, npixels=100)
+    z, ftot_par = obj.zvalue(k=k, permutations=20, npixels=100)
     print(f"z value {z:.2f}.")
+    print(f"\nWeighted fit par: {ftot_par:.2f}\n")

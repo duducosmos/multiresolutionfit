@@ -18,11 +18,10 @@ for key in scenes2:
     print(f"Starting for {key}")
     obj = Multiresoutionfit(scene1, scenes2[key], verbose=True)
     k = 0.1
-    ftot_par = obj.ft_par(k=k)
-    print(f"\nWeighted fit par: {ftot_par:.2f}\n")
     ftot, fw, wins = obj.ft(k=k)
     print(f"\nWeighted fit: {ftot:.2f}\n")
-    z = obj.zvalue(k=k)
+    z, ftot_par = obj.zvalue(k=k)
+    print(f"\nWeighted fit par: {ftot_par:.2f}\n")
     print(f"z value {z:.2f}.")
     plt.plot(wins, fw, marker='D')
     plt.title(f"Fit for {key}")
