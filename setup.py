@@ -17,6 +17,7 @@ setup(
     package_dir={"":"src"},
     description="Multi Resolution Fit",
     lond_description=read("README.md"),
+    long_description_content_type="text/markdown",
     install_requires=["numpy",
                       "numba",
                       "opencv-python",
