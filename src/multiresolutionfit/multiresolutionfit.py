@@ -3,7 +3,7 @@
 """
 Multiple Resolution Goodness of Fit.
 
-The thesis of [cuevs2013]_ is that:
+The thesis of [costanza89]_ is that:
 
     "...there is no one `proper` resolution, but rather a range of
          resolutions is necessary to adequately describe the fit of
