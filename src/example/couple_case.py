@@ -9,12 +9,15 @@ import cv2
 
 
 scene1 = cv2.imread('./images/couple.png', 0).astype(int)
-scenes2 = {"7%": cv2.imread('./images/couple07.png', 0).astype(int),
+scenes2 = {
+           "rot": cv2.imread('./images/couple_rotated.png', 0).astype(int),
+           "7%": cv2.imread('./images/couple07.png', 0).astype(int),
            "13%": cv2.imread('./images/couple13.png', 0).astype(int),
            "25%": cv2.imread('./images/couple25.png', 0).astype(int),
            "50%": cv2.imread('./images/couple50.png', 0).astype(int),
            "75%": cv2.imread('./images/couple75.png', 0).astype(int),
            "88%": cv2.imread('./images/couple88.png', 0).astype(int)
+
           }
 
 MAXW = min(scene1.shape[0], scene1.shape[1])
